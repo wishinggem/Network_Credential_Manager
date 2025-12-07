@@ -62,14 +62,14 @@
         background-color: #e9ecef;
     }
 
-    /* [NEW] Enforce fixed layout for robust resizing */
+    /* Enforce fixed layout for robust resizing */
     table.table-fixed-layout {
         table-layout: fixed;
         width: auto;
         min-width: 100%;
     }
 
-    /* [NEW] Styles for inline content to save space and hug text */
+    /* Styles for inline content to save space and hug text */
     .cell-content-wrapper {
         display: inline-flex;
         align-items: center;
@@ -292,7 +292,14 @@ else
                 });
             }
 
-            if (dataStore.Tables && dataStore.Tables.length > 0) {
+            // [UPDATED] Check for URL parameter 'table' to load the specific table
+            const urlParams = new URLSearchParams(window.location.search);
+            const tableParam = urlParams.get('table');
+
+            // If param exists and is valid, load it. Otherwise default to first.
+            if (tableParam && dataStore.Tables && dataStore.Tables.some(t => t.Name === tableParam)) {
+                showTable(tableParam);
+            } else if (dataStore.Tables && dataStore.Tables.length > 0) {
                 showTable(dataStore.Tables[0].Name);
             }
 
@@ -300,6 +307,9 @@ else
                 tab.addEventListener('click', function(e) {
                     e.preventDefault();
                     showTable(this.dataset.table);
+                    // Optional: update URL without reload so refreshing stays on page
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?table=' + encodeURIComponent(this.dataset.table);
+                    window.history.pushState({path:newUrl},'',newUrl);
                 });
             });
         });
@@ -359,7 +369,6 @@ else
                                         <td class="align-middle">
                                             <div class="cell-content-wrapper">
                                             ${f.IsEncrypted ?
-                                                // Encrypted Field
                                                 `<input type="password" class="form-control form-control-sm border-0 bg-transparent px-0"
                                                        style="width: auto; max-width: 150px;" value="${r.Data[f.Name] || ''}" id="field-${r.Id}-${f.Name}" readonly>
                                                  <button class="btn btn-sm btn-link text-secondary p-0" onclick="togglePassword('field-${r.Id}-${f.Name}')">
@@ -371,7 +380,6 @@ else
                                                      </button>` : ''}
                                                 `
                                                 :
-                                                // Plain Text Field
                                                 `${f.IsLink ?
                                                     `<a href="${r.Data[f.Name] || '#'}" target="_blank" class="text-truncate cell-text">${r.Data[f.Name] || ''}</a>`
                                                     :
@@ -410,14 +418,12 @@ else
             });
         }
 
-        // --- [NEW] Fuzzy Search Logic ---
         function filterTable(searchText) {
             const filter = searchText.toLowerCase();
             const rows = document.querySelectorAll('#tableBody tr');
 
             rows.forEach(row => {
                 let text = "";
-                // Aggregate text from all inputs and spans within the row
                 row.querySelectorAll('input, span, a').forEach(el => {
                     if (el.tagName === 'INPUT') text += el.value + " ";
                     else text += el.textContent + " ";
@@ -431,7 +437,7 @@ else
             });
         }
 
-        // --- Column Resizing Logic (Updated for Pivoting) ---
+        // --- Column Resizing Logic ---
         let startX, startWidth, currentHeader, currentFieldName;
 
         function initResize(e, fieldName) {
@@ -448,7 +454,6 @@ else
         }
 
         function doResize(e) {
-            // Because table-layout is fixed, changing this width doesn't affect neighbors unpredictably
             const width = startWidth + (e.pageX - startX);
             if (width > 50) {
                 currentHeader.style.width = width + 'px';
@@ -472,7 +477,6 @@ else
                     Width: currentHeader.style.width
                 })
             });
-            // Update local model
             const table = dataStore.Tables.find(t => t.Name === currentTable);
             const field = table.Fields.find(f => f.Name === currentFieldName);
             if(field) field.Width = currentHeader.style.width;
@@ -525,7 +529,6 @@ else
             container.insertAdjacentHTML('beforeend', html);
         }
 
-        // [UPDATED] Added IsLink parameter and checkbox
         function getFieldCardHtml(id, name = '', isEnc = false, showCopy = false, isLink = false) {
             return `
                 <div class="card mb-2 shadow-sm" id="${id}">
@@ -572,7 +575,7 @@ else
                 Name: card.querySelector('[data-field-name]').value,
                 IsEncrypted: card.querySelector('[data-field-encrypted]').checked,
                 ShowCopyButton: card.querySelector('[data-field-copy]').checked,
-                IsLink: card.querySelector('[data-field-link]').checked // [NEW]
+                IsLink: card.querySelector('[data-field-link]').checked
             })).filter(f => f.Name);
 
             const response = await fetch('?handler=CreateTable', {
@@ -585,7 +588,8 @@ else
             });
             if (response.ok) {
                 const res = await response.json();
-                if(res.success) location.reload();
+                // [UPDATED] Reload with new table selected
+                if(res.success) window.location.href = '?table=' + encodeURIComponent(name);
                 else alert(res.message || "Error creating table");
             }
         }
@@ -601,7 +605,6 @@ else
             container.innerHTML = '';
             table.Fields.forEach(field => {
                 const fieldId = 'editfield_' + Date.now() + Math.random();
-                // [UPDATED] Pass IsLink
                 container.insertAdjacentHTML('beforeend', getFieldCardHtml(fieldId, field.Name, field.IsEncrypted, field.ShowCopyButton, field.IsLink));
             });
             new Sortable(container, {
@@ -620,7 +623,7 @@ else
                 Name: card.querySelector('[data-field-name]').value,
                 IsEncrypted: card.querySelector('[data-field-encrypted]').checked,
                 ShowCopyButton: card.querySelector('[data-field-copy]').checked,
-                IsLink: card.querySelector('[data-field-link]').checked // [NEW]
+                IsLink: card.querySelector('[data-field-link]').checked
             })).filter(f => f.Name);
 
             const response = await fetch('?handler=UpdateTable', {
@@ -635,7 +638,8 @@ else
                 })
             });
             if (response.ok) {
-                location.reload();
+                // [UPDATED] Reload with renamed table selected
+                window.location.href = '?table=' + encodeURIComponent(newName);
             }
         }
 
@@ -652,7 +656,8 @@ else
                 method: 'POST',
                 headers: { 'RequestVerificationToken': requestToken }
             });
-            if (response.ok) location.reload();
+            // [UPDATED] If deleted, just reload (defaults to first table) or root
+            if (response.ok) window.location.href = '/';
         }
 
         // --- Create Record ---
@@ -720,7 +725,8 @@ else
                 },
                 body: JSON.stringify(body)
             });
-            if (response.ok) location.reload();
+            // [UPDATED] Reload keeping the current table selected
+            if (response.ok) window.location.href = '?table=' + encodeURIComponent(tableName);
         }
 
         // --- Delete Record ---
@@ -739,7 +745,8 @@ else
                 method: 'POST',
                 headers: { 'RequestVerificationToken': requestToken }
             });
-            if (response.ok) location.reload();
+            // [UPDATED] Reload keeping the current table selected
+            if (response.ok) window.location.href = '?table=' + encodeURIComponent(tableName);
         }
 
         // --- Utilities ---
