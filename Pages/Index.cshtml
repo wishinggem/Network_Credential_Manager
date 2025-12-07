@@ -10,38 +10,35 @@
         margin-left: 0.5rem;
     }
 
-    /* Column Resizer Styles */
+    /* --- UPDATED: Excel-like Column Resizer Styles --- */
     .resizer {
         position: absolute;
-        right: 0;
+        right: -5px; /* Centers the handle over the column border */
         top: 0;
-        height: 100%;
-        width: 5px;
-        background: rgba(0, 0, 0, 0.1);
+        bottom: 0;
+        width: 10px; /* Wider hit area for easier grabbing */
+        background: transparent; /* Invisible by default */
         cursor: col-resize;
         user-select: none;
         touch-action: none;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
+        z-index: 100; /* Ensure it sits above header text */
     }
 
     th {
         position: relative;
+        background-clip: padding-box; /* Prevents background bleeding */
     }
 
-        th:hover .resizer {
+        /* Show blue guide when hovering or actively resizing */
+        th:hover .resizer,
+        .resizer.resizing {
+            background: rgba(13, 110, 253, 0.5);
             opacity: 1;
+            transition: opacity 0.2s;
         }
 
-    .resizing {
-        cursor: col-resize;
-        border-right: 2px solid #0d6efd;
-    }
-
-    /* Drag handles */
+    /* Drag handles for rows */
     .drag-handle {
-        cursor: move;
         cursor: grab;
         color: #adb5bd;
     }
@@ -62,11 +59,12 @@
         background-color: #e9ecef;
     }
 
-    /* Enforce fixed layout for robust resizing */
+    /* --- UPDATED: Robust Table Layout --- */
     table.table-fixed-layout {
         table-layout: fixed;
-        width: auto;
-        min-width: 100%;
+        width: auto; /* Allow table to grow/shrink freely */
+        min-width: 100%; /* Fill screen initially */
+        border-collapse: collapse; /* Critical for precise resizing */
     }
 
     /* Styles for inline content to save space and hug text */
@@ -292,7 +290,7 @@ else
                 });
             }
 
-            // [UPDATED] Check for URL parameter 'table' to load the specific table
+            // Check for URL parameter 'table' to load the specific table
             const urlParams = new URLSearchParams(window.location.search);
             const tableParam = urlParams.get('table');
 
@@ -307,7 +305,7 @@ else
                 tab.addEventListener('click', function(e) {
                     e.preventDefault();
                     showTable(this.dataset.table);
-                    // Optional: update URL without reload so refreshing stays on page
+                    // Update URL without reload
                     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?table=' + encodeURIComponent(this.dataset.table);
                     window.history.pushState({path:newUrl},'',newUrl);
                 });
@@ -354,7 +352,7 @@ else
                             <tr>
                                 <th style="width: 50px;" class="text-center"><i class="bi bi-grip-vertical"></i></th>
                                 ${table.Fields.map(f => `
-                                    <th style="position: relative; width: ${f.Width || '200px'}; min-width: 100px;">
+                                    <th style="position: relative; width: ${f.Width || '200px'}; min-width: 30px; box-sizing: border-box;">
                                         ${f.Name}
                                         <div class="resizer" onmousedown="initResize(event, '${f.Name}')"></div>
                                     </th>`).join('')}
@@ -375,7 +373,7 @@ else
                                                      <i class="bi bi-eye"></i>
                                                  </button>
                                                  ${f.ShowCopyButton ?
-                                                    `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
+                                                     `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
                                                          <i class="bi bi-clipboard2"></i>
                                                      </button>` : ''}
                                                 `
@@ -386,7 +384,7 @@ else
                                                     `<span class="text-truncate cell-text">${r.Data[f.Name] || ''}</span>`
                                                  }
                                                  ${f.ShowCopyButton ?
-                                                    `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
+                                                     `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
                                                          <i class="bi bi-clipboard2"></i>
                                                      </button>` : ''}
                                                 `
@@ -437,34 +435,58 @@ else
             });
         }
 
-        // --- Column Resizing Logic ---
+        // --- UPDATED: Excel-like Column Resizing Logic ---
         let startX, startWidth, currentHeader, currentFieldName;
+        let resizingRAF = null;
 
         function initResize(e, fieldName) {
             e.preventDefault();
             e.stopPropagation();
+
             currentHeader = e.target.parentElement;
             currentFieldName = fieldName;
             startX = e.pageX;
             startWidth = currentHeader.offsetWidth;
 
-            document.documentElement.addEventListener('mousemove', doResize, false);
-            document.documentElement.addEventListener('mouseup', stopResize, false);
-            currentHeader.classList.add('resizing');
+            // Visual feedback
+            e.target.classList.add('resizing');
+
+            // GLOBAL LISTENERS: Add to document to catch fast mouse movements
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', stopResize);
+
+            // "EXCEL FEEL": Lock cursor and disable selection globally during drag
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
         }
 
-        function doResize(e) {
-            const width = startWidth + (e.pageX - startX);
-            if (width > 50) {
-                currentHeader.style.width = width + 'px';
-            }
+        function onMouseMove(e) {
+            // Use requestAnimationFrame for smooth 60fps rendering
+            if (resizingRAF) cancelAnimationFrame(resizingRAF);
+
+            resizingRAF = requestAnimationFrame(() => {
+                const width = startWidth + (e.pageX - startX);
+                // Allow shrinking down to 30px (Excel allows very small columns)
+                if (width > 30) {
+                    currentHeader.style.width = width + 'px';
+                }
+            });
         }
 
         async function stopResize(e) {
-            document.documentElement.removeEventListener('mousemove', doResize, false);
-            document.documentElement.removeEventListener('mouseup', stopResize, false);
-            currentHeader.classList.remove('resizing');
+            // Cleanup listeners
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', stopResize);
 
+            // Restore global styles
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+
+            // Remove visual feedback
+            const resizer = currentHeader.querySelector('.resizer');
+            if(resizer) resizer.classList.remove('resizing');
+
+            // Save the new width
             await fetch('?handler=UpdateColumnWidth', {
                 method: 'POST',
                 headers: {
@@ -477,6 +499,8 @@ else
                     Width: currentHeader.style.width
                 })
             });
+
+            // Update local model
             const table = dataStore.Tables.find(t => t.Name === currentTable);
             const field = table.Fields.find(f => f.Name === currentFieldName);
             if(field) field.Width = currentHeader.style.width;
@@ -586,9 +610,9 @@ else
                 },
                 body: JSON.stringify({ Name: name, Fields: fields })
             });
+
             if (response.ok) {
                 const res = await response.json();
-                // [UPDATED] Reload with new table selected
                 if(res.success) window.location.href = '?table=' + encodeURIComponent(name);
                 else alert(res.message || "Error creating table");
             }
@@ -637,8 +661,8 @@ else
                     NewTable: { Name: newName, Fields: fields }
                 })
             });
+
             if (response.ok) {
-                // [UPDATED] Reload with renamed table selected
                 window.location.href = '?table=' + encodeURIComponent(newName);
             }
         }
@@ -656,7 +680,7 @@ else
                 method: 'POST',
                 headers: { 'RequestVerificationToken': requestToken }
             });
-            // [UPDATED] If deleted, just reload (defaults to first table) or root
+
             if (response.ok) window.location.href = '/';
         }
 
@@ -713,10 +737,12 @@ else
             document.querySelectorAll('#recordFields input').forEach(input => {
                 data[input.dataset.field] = input.value;
             });
+
             const handler = recordId ? 'UpdateRecord' : 'CreateRecord';
             const body = recordId ?
                 { TableName: tableName, RecordId: recordId, Data: data } :
                 { TableName: tableName, Data: data };
+
             const response = await fetch(`?handler=${handler}`, {
                 method: 'POST',
                 headers: {
@@ -725,7 +751,7 @@ else
                 },
                 body: JSON.stringify(body)
             });
-            // [UPDATED] Reload keeping the current table selected
+
             if (response.ok) window.location.href = '?table=' + encodeURIComponent(tableName);
         }
 
@@ -745,7 +771,7 @@ else
                 method: 'POST',
                 headers: { 'RequestVerificationToken': requestToken }
             });
-            // [UPDATED] Reload keeping the current table selected
+
             if (response.ok) window.location.href = '?table=' + encodeURIComponent(tableName);
         }
 
