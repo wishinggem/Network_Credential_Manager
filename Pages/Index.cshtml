@@ -30,9 +30,9 @@
         position: relative;
     }
 
-    th:hover .resizer {
-        opacity: 1;
-    }
+        th:hover .resizer {
+            opacity: 1;
+        }
 
     .resizing {
         cursor: col-resize;
@@ -41,13 +41,14 @@
 
     /* Drag handles */
     .drag-handle {
-        cursor: move; /* fallback */
+        cursor: move;
         cursor: grab;
         color: #adb5bd;
     }
-    .drag-handle:active {
-        cursor: grabbing;
-    }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
 
     /* Navbar sorting */
     .nav-item.sortable-ghost {
@@ -59,6 +60,28 @@
     tr.sortable-ghost {
         opacity: 0.4;
         background-color: #e9ecef;
+    }
+
+    /* [NEW] Enforce fixed layout for robust resizing */
+    table.table-fixed-layout {
+        table-layout: fixed;
+        width: auto;
+        min-width: 100%;
+    }
+
+    /* [NEW] Styles for inline content to save space and hug text */
+    .cell-content-wrapper {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        max-width: 100%;
+    }
+
+    .cell-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
 </style>
 
@@ -115,14 +138,19 @@ else
                         </a>
                     </li>
                 </ul>
-                <form method="post" asp-page-handler="Logout" class="d-inline ms-auto">
-                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
-                </form>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="?handler=Export" target="_blank" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-download"></i> Export Data
+                    </a>
+                    <form method="post" asp-page-handler="Logout" class="d-inline">
+                        <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                    </form>
+                </div>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid px-4">
+    <div class="px-4">
         <div id="tableContent"></div>
     </div>
 
@@ -291,7 +319,13 @@ else
 
             let html = `
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2>${tableName}</h2>
+                    <div class="d-flex align-items-center gap-3">
+                         <h2 class="mb-0">${tableName}</h2>
+                         <div class="input-group" style="width: 300px;">
+                             <span class="input-group-text"><i class="bi bi-search"></i></span>
+                             <input type="text" class="form-control" placeholder="Fuzzy search..." onkeyup="filterTable(this.value)">
+                         </div>
+                    </div>
                     <div class="d-flex gap-2">
                          <button class="btn btn-secondary" onclick="openEditTable('${tableName}')">
                              <i class="bi bi-gear"></i> Edit Table
@@ -305,12 +339,12 @@ else
                     </div>
                 </div>
                 <div class="table-responsive shadow-sm border rounded">
-                    <table class="table table-striped table-hover mb-0" id="mainTable">
+                    <table class="table table-striped table-hover mb-0 table-fixed-layout" id="mainTable">
                         <thead class="bg-light">
                             <tr>
                                 <th style="width: 50px;" class="text-center"><i class="bi bi-grip-vertical"></i></th>
                                 ${table.Fields.map(f => `
-                                    <th style="position: relative; width: ${f.Width || 'auto'}; min-width: 100px;">
+                                    <th style="position: relative; width: ${f.Width || '200px'}; min-width: 100px;">
                                         ${f.Name}
                                         <div class="resizer" onmousedown="initResize(event, '${f.Name}')"></div>
                                     </th>`).join('')}
@@ -323,26 +357,33 @@ else
                                     <td class="align-middle text-center"><i class="bi bi-grip-vertical drag-handle"></i></td>
                                     ${table.Fields.map(f => `
                                         <td class="align-middle">
+                                            <div class="cell-content-wrapper">
                                             ${f.IsEncrypted ?
-                                                `<div class="input-group input-group-sm">
-                                                    <input type="password" class="form-control form-control-sm" value="${r.Data[f.Name] || ''}" id="field-${r.Id}-${f.Name}" readonly>
-                                                    <button class="btn btn-outline-secondary" onclick="togglePassword('field-${r.Id}-${f.Name}')">
-                                                        <i class="bi bi-eye"></i>
-                                                    </button>
-                                                    ${f.ShowCopyButton ?
-                                                        `<button class="btn btn-outline-secondary" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
-                                                            <i class="bi bi-clipboard2"></i>
-                                                         </button>` : ''}
-                                                </div>`
-                                            :
-                                                `<div class="d-flex align-items-center gap-2">
-                                                    <span class="text-break">${r.Data[f.Name] || ''}</span>
-                                                    ${f.ShowCopyButton ?
-                                                        `<button class="btn btn-sm btn-outline-secondary ms-auto" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
-                                                            <i class="bi bi-clipboard2"></i>
-                                                         </button>` : ''}
-                                                </div>`
+                                                // Encrypted Field
+                                                `<input type="password" class="form-control form-control-sm border-0 bg-transparent px-0"
+                                                       style="width: auto; max-width: 150px;" value="${r.Data[f.Name] || ''}" id="field-${r.Id}-${f.Name}" readonly>
+                                                 <button class="btn btn-sm btn-link text-secondary p-0" onclick="togglePassword('field-${r.Id}-${f.Name}')">
+                                                     <i class="bi bi-eye"></i>
+                                                 </button>
+                                                 ${f.ShowCopyButton ?
+                                                    `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
+                                                         <i class="bi bi-clipboard2"></i>
+                                                     </button>` : ''}
+                                                `
+                                                :
+                                                // Plain Text Field
+                                                `${f.IsLink ?
+                                                    `<a href="${r.Data[f.Name] || '#'}" target="_blank" class="text-truncate cell-text">${r.Data[f.Name] || ''}</a>`
+                                                    :
+                                                    `<span class="text-truncate cell-text">${r.Data[f.Name] || ''}</span>`
+                                                 }
+                                                 ${f.ShowCopyButton ?
+                                                    `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
+                                                         <i class="bi bi-clipboard2"></i>
+                                                     </button>` : ''}
+                                                `
                                             }
+                                            </div>
                                         </td>
                                     `).join('')}
                                     <td class="align-middle">
@@ -359,7 +400,6 @@ else
             `;
             document.getElementById('tableContent').innerHTML = html;
 
-            // Init Row Sorting
             const tbody = document.getElementById('tableBody');
             new Sortable(tbody, {
                 animation: 150,
@@ -370,7 +410,28 @@ else
             });
         }
 
-        // --- Column Resizing Logic ---
+        // --- [NEW] Fuzzy Search Logic ---
+        function filterTable(searchText) {
+            const filter = searchText.toLowerCase();
+            const rows = document.querySelectorAll('#tableBody tr');
+
+            rows.forEach(row => {
+                let text = "";
+                // Aggregate text from all inputs and spans within the row
+                row.querySelectorAll('input, span, a').forEach(el => {
+                    if (el.tagName === 'INPUT') text += el.value + " ";
+                    else text += el.textContent + " ";
+                });
+
+                if (text.toLowerCase().indexOf(filter) > -1) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        // --- Column Resizing Logic (Updated for Pivoting) ---
         let startX, startWidth, currentHeader, currentFieldName;
 
         function initResize(e, fieldName) {
@@ -387,8 +448,9 @@ else
         }
 
         function doResize(e) {
+            // Because table-layout is fixed, changing this width doesn't affect neighbors unpredictably
             const width = startWidth + (e.pageX - startX);
-            if (width > 50) { // minimum width
+            if (width > 50) {
                 currentHeader.style.width = width + 'px';
             }
         }
@@ -398,7 +460,6 @@ else
             document.documentElement.removeEventListener('mouseup', stopResize, false);
             currentHeader.classList.remove('resizing');
 
-            // Save new width
             await fetch('?handler=UpdateColumnWidth', {
                 method: 'POST',
                 headers: {
@@ -411,8 +472,7 @@ else
                     Width: currentHeader.style.width
                 })
             });
-
-            // Update local model so re-renders keep width
+            // Update local model
             const table = dataStore.Tables.find(t => t.Name === currentTable);
             const field = table.Fields.find(f => f.Name === currentFieldName);
             if(field) field.Width = currentHeader.style.width;
@@ -465,7 +525,8 @@ else
             container.insertAdjacentHTML('beforeend', html);
         }
 
-        function getFieldCardHtml(id, name = '', isEnc = false, showCopy = false) {
+        // [UPDATED] Added IsLink parameter and checkbox
+        function getFieldCardHtml(id, name = '', isEnc = false, showCopy = false, isLink = false) {
             return `
                 <div class="card mb-2 shadow-sm" id="${id}">
                     <div class="card-body p-2">
@@ -481,6 +542,10 @@ else
                                     <div class="form-check form-check-sm">
                                         <input class="form-check-input" type="checkbox" data-field-copy ${showCopy ? 'checked' : ''}>
                                         <label class="form-check-label">Copy Button</label>
+                                    </div>
+                                    <div class="form-check form-check-sm">
+                                        <input class="form-check-input" type="checkbox" data-field-link ${isLink ? 'checked' : ''}>
+                                        <label class="form-check-label">Is Link</label>
                                     </div>
                                 </div>
                             </div>
@@ -506,7 +571,8 @@ else
             const fields = Array.from(fieldCards).map(card => ({
                 Name: card.querySelector('[data-field-name]').value,
                 IsEncrypted: card.querySelector('[data-field-encrypted]').checked,
-                ShowCopyButton: card.querySelector('[data-field-copy]').checked
+                ShowCopyButton: card.querySelector('[data-field-copy]').checked,
+                IsLink: card.querySelector('[data-field-link]').checked // [NEW]
             })).filter(f => f.Name);
 
             const response = await fetch('?handler=CreateTable', {
@@ -517,7 +583,6 @@ else
                 },
                 body: JSON.stringify({ Name: name, Fields: fields })
             });
-
             if (response.ok) {
                 const res = await response.json();
                 if(res.success) location.reload();
@@ -536,15 +601,13 @@ else
             container.innerHTML = '';
             table.Fields.forEach(field => {
                 const fieldId = 'editfield_' + Date.now() + Math.random();
-                container.insertAdjacentHTML('beforeend', getFieldCardHtml(fieldId, field.Name, field.IsEncrypted, field.ShowCopyButton));
+                // [UPDATED] Pass IsLink
+                container.insertAdjacentHTML('beforeend', getFieldCardHtml(fieldId, field.Name, field.IsEncrypted, field.ShowCopyButton, field.IsLink));
             });
-
-            // Make fields draggable in modal
             new Sortable(container, {
                 animation: 150,
                 handle: '.drag-handle'
             });
-
             new bootstrap.Modal(document.getElementById('editTableModal')).show();
         }
 
@@ -556,7 +619,8 @@ else
             const fields = Array.from(fieldCards).map(card => ({
                 Name: card.querySelector('[data-field-name]').value,
                 IsEncrypted: card.querySelector('[data-field-encrypted]').checked,
-                ShowCopyButton: card.querySelector('[data-field-copy]').checked
+                ShowCopyButton: card.querySelector('[data-field-copy]').checked,
+                IsLink: card.querySelector('[data-field-link]').checked // [NEW]
             })).filter(f => f.Name);
 
             const response = await fetch('?handler=UpdateTable', {
@@ -570,7 +634,6 @@ else
                     NewTable: { Name: newName, Fields: fields }
                 })
             });
-
             if (response.ok) {
                 location.reload();
             }
@@ -622,7 +685,6 @@ else
             document.getElementById('recordModalTitle').textContent = 'Edit Record';
             document.getElementById('recordTableName').value = tableName;
             document.getElementById('recordId').value = recordId;
-
             const container = document.getElementById('recordFields');
             container.innerHTML = table.Fields.map(field => `
                 <div class="mb-3">
@@ -646,12 +708,10 @@ else
             document.querySelectorAll('#recordFields input').forEach(input => {
                 data[input.dataset.field] = input.value;
             });
-
             const handler = recordId ? 'UpdateRecord' : 'CreateRecord';
             const body = recordId ?
                 { TableName: tableName, RecordId: recordId, Data: data } :
                 { TableName: tableName, Data: data };
-
             const response = await fetch(`?handler=${handler}`, {
                 method: 'POST',
                 headers: {
@@ -660,7 +720,6 @@ else
                 },
                 body: JSON.stringify(body)
             });
-
             if (response.ok) location.reload();
         }
 
@@ -701,18 +760,14 @@ else
             }
         }
 
-        // Robust Copy function (works without SSL/localhost context restrictions)
         function copyToClipboard(btnElement, text) {
             if (!text) return;
-
-            // Strategy 1: Modern API
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => showCopiedFeedback(btnElement));
             } else {
-                // Strategy 2: Fallback text area
                 const textArea = document.createElement("textarea");
                 textArea.value = text;
-                textArea.style.position = "fixed";  // Avoid scrolling to bottom
+                textArea.style.position = "fixed";
                 document.body.appendChild(textArea);
                 textArea.focus();
                 textArea.select();

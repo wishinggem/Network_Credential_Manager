@@ -17,7 +17,8 @@ namespace Network_Credential_Manager.Pages
         public string Name { get; set; } = "";
         public bool IsEncrypted { get; set; }
         public bool ShowCopyButton { get; set; }
-        public string Width { get; set; } = ""; // New property for column width
+        public bool IsLink { get; set; } // [New Property]
+        public string Width { get; set; } = "";
     }
 
     public class TableRecord
@@ -66,6 +67,16 @@ namespace Network_Credential_Manager.Pages
             LoadData();
         }
 
+        // [New Endpoint] Export Data
+        public IActionResult OnGetExport()
+        {
+            if (!CheckAuth()) return Unauthorized();
+            if (!System.IO.File.Exists(_dataPath)) return NotFound();
+
+            var bytes = System.IO.File.ReadAllBytes(_dataPath);
+            return File(bytes, "application/json", "data.json");
+        }
+
         public IActionResult OnPostLogin(string username, string password)
         {
             if (username == _username && password == _password)
@@ -88,7 +99,6 @@ namespace Network_Credential_Manager.Pages
         {
             if (!CheckAuth()) return Unauthorized();
             LoadData();
-            // Prevent duplicates
             if (DataStore.Tables.Any(t => t.Name == table.Name))
                 return new JsonResult(new { success = false, message = "Table exists" });
 
@@ -105,7 +115,6 @@ namespace Network_Credential_Manager.Pages
             var table = DataStore.Tables.FirstOrDefault(t => t.Name == req.OldName);
             if (table != null)
             {
-                // Preserve existing widths if not explicitly overwritten (though usually the frontend sends the full object)
                 foreach (var newField in req.NewTable.Fields)
                 {
                     var oldField = table.Fields.FirstOrDefault(f => f.Name == newField.Name);
@@ -195,14 +204,11 @@ namespace Network_Credential_Manager.Pages
             return new JsonResult(new { success = true });
         }
 
-        // --- New Endpoints for Reordering and Resizing ---
-
         public IActionResult OnPostReorderTables([FromBody] List<string> tableNames)
         {
             if (!CheckAuth()) return Unauthorized();
             LoadData();
 
-            // Sort the internal list based on the incoming list of names
             var newOrder = new List<TableDefinition>();
             foreach (var name in tableNames)
             {
@@ -210,7 +216,6 @@ namespace Network_Credential_Manager.Pages
                 if (t != null) newOrder.Add(t);
             }
 
-            // Append any that might have been missed (safety)
             foreach (var t in DataStore.Tables)
             {
                 if (!newOrder.Contains(t)) newOrder.Add(t);
@@ -237,7 +242,6 @@ namespace Network_Credential_Manager.Pages
                     if (r != null) newOrder.Add(r);
                 }
 
-                // Append any missing (safety)
                 foreach (var r in currentRecords)
                 {
                     if (!newOrder.Contains(r)) newOrder.Add(r);
@@ -351,7 +355,6 @@ namespace Network_Credential_Manager.Pages
                 aes.Key = key;
 
                 var iv = new byte[aes.IV.Length];
-                // Check integrity
                 if (fullCipher.Length < iv.Length) return "";
 
                 var cipher = new byte[fullCipher.Length - iv.Length];
