@@ -5,6 +5,19 @@
 }
 
 <style>
+    /* --- NEW: Force Full Screen Width --- */
+    /* This overrides the default Bootstrap container limit from _Layout.cshtml */
+    .container {
+        max-width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    /* Ensure the main content wrapper expands */
+    main {
+        width: 100% !important;
+    }
+
     /* Spacing tweaks */
     .btn + .btn {
         margin-left: 0.5rem;
@@ -17,11 +30,12 @@
         top: 0;
         bottom: 0;
         width: 10px; /* Wider hit area for easier grabbing */
-        background: transparent; /* Invisible by default */
+        background: transparent;
         cursor: col-resize;
         user-select: none;
         touch-action: none;
-        z-index: 100; /* Ensure it sits above header text */
+        z-index: 100;
+        /* Ensure it sits above header text */
     }
 
     th {
@@ -63,8 +77,10 @@
     table.table-fixed-layout {
         table-layout: fixed;
         width: auto; /* Allow table to grow/shrink freely */
-        min-width: 100%; /* Fill screen initially */
-        border-collapse: collapse; /* Critical for precise resizing */
+        min-width: 100%;
+        /* Fill screen initially */
+        border-collapse: collapse;
+        /* Critical for precise resizing */
     }
 
     /* Styles for inline content to save space and hug text */
@@ -90,23 +106,29 @@
             <div class="col-md-5 col-lg-4">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
+                       
                         <h3 class="card-title text-center mb-4">Login</h3>
                         @if (!string.IsNullOrEmpty(Model.LoginError))
                         {
                             <div class="alert alert-danger" role="alert">
+                
                                 @Model.LoginError
                             </div>
                         }
                         <form method="post" asp-page-handler="Login">
+      
                             <div class="mb-3">
                                 <label for="username" class="form-label">Username</label>
                                 <input type="text" class="form-control" id="username" name="username" required>
+      
                             </div>
                             <div class="mb-4">
                                 <label for="password" class="form-label">Password</label>
+               
                                 <input type="password" class="form-control" id="password" name="password" required>
                             </div>
                             <button type="submit" class="btn btn-primary w-100 py-2">Login</button>
+                 
                         </form>
                     </div>
                 </div>
@@ -128,19 +150,23 @@ else
                     {
                         <li class="nav-item" data-id="@table.Name">
                             <a class="nav-link table-tab" href="#" data-table="@table.Name">@table.Name</a>
+                   
                         </li>
                     }
                     <li class="nav-item exclude-sort">
                         <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#createTableModal">
+                         
                             <i class="bi bi-plus-circle"></i> Create Table
                         </a>
                     </li>
                 </ul>
                 <div class="d-flex align-items-center gap-2">
+              
                     <a href="?handler=Export" target="_blank" class="btn btn-outline-info btn-sm">
                         <i class="bi bi-download"></i> Export Data
                     </a>
                     <form method="post" asp-page-handler="Logout" class="d-inline">
+                  
                         <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
                     </form>
                 </div>
@@ -153,30 +179,36 @@ else
     </div>
 
     <div class="modal fade" id="createTableModal" tabindex="-1">
+    
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Create Table</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+   
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Table Name</label>
                         <input type="text" class="form-control" id="newTableName" required>
+           
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Fields</label>
                         <div id="newTableFields"></div>
+                    
                         <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addFieldToCreate()">
                             <i class="bi bi-plus"></i> Add Field
                         </button>
                     </div>
+              
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" onclick="createTable()">Create</button>
                 </div>
             </div>
+     
         </div>
     </div>
 
@@ -190,19 +222,23 @@ else
                 <div class="modal-body">
                     <input type="hidden" id="editTableOldName">
                     <div class="mb-3">
+                        
                         <label class="form-label">Table Name</label>
                         <input type="text" class="form-control" id="editTableName" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Fields (Drag to Reorder)</label>
+ 
                         <div id="editTableFields"></div>
                         <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addFieldToEdit()">
                             <i class="bi bi-plus"></i> Add Field
+              
                         </button>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+             
                     <button type="button" class="btn btn-primary" onclick="updateTable()">Save</button>
                 </div>
             </div>
@@ -213,6 +249,7 @@ else
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
+  
                     <h5 class="modal-title">Delete Table</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -222,6 +259,7 @@ else
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+             
                     <button type="button" class="btn btn-danger" onclick="deleteTable()">Delete</button>
                 </div>
             </div>
@@ -232,6 +270,7 @@ else
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
+ 
                     <h5 class="modal-title" id="recordModalTitle">Create Record</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -251,16 +290,19 @@ else
     <div class="modal fade" id="deleteRecordModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
+      
                 <div class="modal-header">
                     <h5 class="modal-title">Delete Record</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+           
                     <p>Are you sure you want to delete this record?</p>
                     <input type="hidden" id="deleteRecordTableName">
                     <input type="hidden" id="deleteRecordId">
                 </div>
                 <div class="modal-footer">
+      
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger" onclick="deleteRecord()">Delete</button>
                 </div>
@@ -272,6 +314,7 @@ else
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 
+  
     <script>
         let dataStore = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DataStore));
         let currentTable = null;
@@ -283,11 +326,13 @@ else
             if(navList) {
                 new Sortable(navList, {
                     animation: 150,
+             
                     filter: '.exclude-sort',
                     onEnd: function (evt) {
                         saveTableOrder();
                     }
                 });
+         
             }
 
             // Check for URL parameter 'table' to load the specific table
@@ -306,6 +351,7 @@ else
                     e.preventDefault();
                     showTable(this.dataset.table);
                     // Update URL without reload
+    
                     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?table=' + encodeURIComponent(this.dataset.table);
                     window.history.pushState({path:newUrl},'',newUrl);
                 });
@@ -329,79 +375,103 @@ else
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex align-items-center gap-3">
                          <h2 class="mb-0">${tableName}</h2>
+                      
                          <div class="input-group" style="width: 300px;">
                              <span class="input-group-text"><i class="bi bi-search"></i></span>
-                             <input type="text" class="form-control" placeholder="Fuzzy search..." onkeyup="filterTable(this.value)">
+                             <input type="text" class="form-control" placeholder="Search..." onkeyup="filterTable(this.value)">
                          </div>
+    
                     </div>
                     <div class="d-flex gap-2">
                          <button class="btn btn-secondary" onclick="openEditTable('${tableName}')">
                              <i class="bi bi-gear"></i> Edit Table
+ 
                          </button>
                          <button class="btn btn-danger" onclick="openDeleteTable('${tableName}')">
                              <i class="bi bi-trash"></i> Delete Table
+               
                          </button>
                          <button class="btn btn-primary" onclick="openCreateRecord('${tableName}')">
                             <i class="bi bi-plus-circle"></i> Create Record
                         </button>
+      
                     </div>
                 </div>
                 <div class="table-responsive shadow-sm border rounded">
                     <table class="table table-striped table-hover mb-0 table-fixed-layout" id="mainTable">
+                        
                         <thead class="bg-light">
                             <tr>
                                 <th style="width: 50px;" class="text-center"><i class="bi bi-grip-vertical"></i></th>
                                 ${table.Fields.map(f => `
                                     <th style="position: relative; width: ${f.Width || '200px'}; min-width: 30px; box-sizing: border-box;">
+                  
                                         ${f.Name}
                                         <div class="resizer" onmousedown="initResize(event, '${f.Name}')"></div>
+                                   
                                     </th>`).join('')}
                                 <th style="width: 150px;">Actions</th>
                             </tr>
                         </thead>
+             
                         <tbody id="tableBody">
                             ${records.map(r => `
                                 <tr data-id="${r.Id}">
+                         
                                     <td class="align-middle text-center"><i class="bi bi-grip-vertical drag-handle"></i></td>
                                     ${table.Fields.map(f => `
                                         <td class="align-middle">
+     
                                             <div class="cell-content-wrapper">
                                             ${f.IsEncrypted ?
                                                 `<input type="password" class="form-control form-control-sm border-0 bg-transparent px-0"
-                                                       style="width: auto; max-width: 150px;" value="${r.Data[f.Name] || ''}" id="field-${r.Id}-${f.Name}" readonly>
+                                                       style="width: auto; max-width: 150px;"
+                                                       value="${r.Data[f.Name] || ''}" id="field-${r.Id}-${f.Name}" readonly>
                                                  <button class="btn btn-sm btn-link text-secondary p-0" onclick="togglePassword('field-${r.Id}-${f.Name}')">
-                                                     <i class="bi bi-eye"></i>
+                                         
+                                                    <i class="bi bi-eye"></i>
                                                  </button>
+                                     
                                                  ${f.ShowCopyButton ?
                                                      `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
                                                          <i class="bi bi-clipboard2"></i>
+                                
                                                      </button>` : ''}
                                                 `
+                             
                                                 :
                                                 `${f.IsLink ?
                                                     `<a href="${r.Data[f.Name] || '#'}" target="_blank" class="text-truncate cell-text">${r.Data[f.Name] || ''}</a>`
                                                     :
+                                        
                                                     `<span class="text-truncate cell-text">${r.Data[f.Name] || ''}</span>`
                                                  }
                                                  ${f.ShowCopyButton ?
                                                      `<button class="btn btn-sm btn-link text-secondary p-0" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
                                                          <i class="bi bi-clipboard2"></i>
+                                
                                                      </button>` : ''}
                                                 `
+                             
                                             }
                                             </div>
                                         </td>
+ 
                                     `).join('')}
                                     <td class="align-middle">
+                            
                                         <div class="d-flex gap-2">
                                             <button class="btn btn-sm btn-warning" onclick="openEditRecord('${tableName}', '${r.Id}')">Edit</button>
+                                     
                                             <button class="btn btn-sm btn-danger" onclick="openDeleteRecord('${tableName}', '${r.Id}')">Delete</button>
                                         </div>
                                     </td>
+            
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
+        
                 </div>
             `;
             document.getElementById('tableContent').innerHTML = html;
@@ -413,6 +483,7 @@ else
                 onEnd: function (evt) {
                     saveRecordOrder(tableName);
                 }
+  
             });
         }
 
@@ -431,11 +502,12 @@ else
                     row.style.display = "";
                 } else {
                     row.style.display = "none";
+ 
                 }
             });
         }
 
-        // --- UPDATED: Excel-like Column Resizing Logic ---
+        // --- UPDATED: Excel-like Column Resizing Logic (Jolt Fix) ---
         let startX, startWidth, currentHeader, currentFieldName;
         let resizingRAF = null;
 
@@ -446,11 +518,21 @@ else
             currentHeader = e.target.parentElement;
             currentFieldName = fieldName;
             startX = e.pageX;
+
+            // 1. FREEZE THE GRID: Lock all columns to their current visual width
+            // This prevents other columns from jumping/reflowing when we change one.
+            const allHeaders = document.querySelectorAll('#mainTable th');
+            allHeaders.forEach(th => {
+                // Explicitly set the style width to the rendered offsetWidth
+                th.style.width = th.offsetWidth + 'px';
+            });
+
+            // 2. Capture the starting width of the target column
             startWidth = currentHeader.offsetWidth;
 
             // Visual feedback
             e.target.classList.add('resizing');
-
+            
             // GLOBAL LISTENERS: Add to document to catch fast mouse movements
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', stopResize);
@@ -463,7 +545,7 @@ else
         function onMouseMove(e) {
             // Use requestAnimationFrame for smooth 60fps rendering
             if (resizingRAF) cancelAnimationFrame(resizingRAF);
-
+            
             resizingRAF = requestAnimationFrame(() => {
                 const width = startWidth + (e.pageX - startX);
                 // Allow shrinking down to 30px (Excel allows very small columns)
@@ -492,14 +574,15 @@ else
                 headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': requestToken
+    
                 },
                 body: JSON.stringify({
                     TableName: currentTable,
                     FieldName: currentFieldName,
                     Width: currentHeader.style.width
+        
                 })
             });
-
             // Update local model
             const table = dataStore.Tables.find(t => t.Name === currentTable);
             const field = table.Fields.find(f => f.Name === currentFieldName);
@@ -517,6 +600,7 @@ else
                 headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': requestToken
+                
                 },
                 body: JSON.stringify(tableNames)
             });
@@ -531,6 +615,7 @@ else
                 headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': requestToken
+                
                 },
                 body: JSON.stringify({ TableName: tableName, RecordIds: recordIds })
             });
@@ -557,31 +642,39 @@ else
             return `
                 <div class="card mb-2 shadow-sm" id="${id}">
                     <div class="card-body p-2">
+                       
                         <div class="d-flex justify-content-between align-items-center gap-2">
                             <i class="bi bi-grip-vertical drag-handle text-muted"></i>
                             <div class="flex-grow-1">
-                                <input type="text" class="form-control form-control-sm mb-2" placeholder="Field Name" data-field-name value="${name}">
+                                <input type="text" 
+                                       class="form-control form-control-sm mb-2" placeholder="Field Name" data-field-name value="${name}">
                                 <div class="d-flex gap-3">
                                     <div class="form-check form-check-sm">
+                      
                                         <input class="form-check-input" type="checkbox" data-field-encrypted ${isEnc ? 'checked' : ''}>
                                         <label class="form-check-label">Encrypt</label>
                                     </div>
+                     
                                     <div class="form-check form-check-sm">
                                         <input class="form-check-input" type="checkbox" data-field-copy ${showCopy ? 'checked' : ''}>
                                         <label class="form-check-label">Copy Button</label>
                                     </div>
+                    
                                     <div class="form-check form-check-sm">
                                         <input class="form-check-input" type="checkbox" data-field-link ${isLink ? 'checked' : ''}>
                                         <label class="form-check-label">Is Link</label>
                                     </div>
+                    
                                 </div>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="document.getElementById('${id}').remove()">
+                           
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
                     </div>
                 </div>
+     
             `;
         }
 
@@ -601,16 +694,15 @@ else
                 ShowCopyButton: card.querySelector('[data-field-copy]').checked,
                 IsLink: card.querySelector('[data-field-link]').checked
             })).filter(f => f.Name);
-
             const response = await fetch('?handler=CreateTable', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': requestToken
                 },
+   
                 body: JSON.stringify({ Name: name, Fields: fields })
             });
-
             if (response.ok) {
                 const res = await response.json();
                 if(res.success) window.location.href = '?table=' + encodeURIComponent(name);
@@ -649,19 +741,18 @@ else
                 ShowCopyButton: card.querySelector('[data-field-copy]').checked,
                 IsLink: card.querySelector('[data-field-link]').checked
             })).filter(f => f.Name);
-
             const response = await fetch('?handler=UpdateTable', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': requestToken
                 },
+   
                 body: JSON.stringify({
                     OldName: oldName,
                     NewTable: { Name: newName, Fields: fields }
                 })
             });
-
             if (response.ok) {
                 window.location.href = '?table=' + encodeURIComponent(newName);
             }
@@ -680,7 +771,6 @@ else
                 method: 'POST',
                 headers: { 'RequestVerificationToken': requestToken }
             });
-
             if (response.ok) window.location.href = '/';
         }
 
@@ -698,6 +788,7 @@ else
                     <label class="form-label">${field.Name}</label>
                     <input type="${field.IsEncrypted ? 'password' : 'text'}"
                            class="form-control"
+      
                            data-field="${field.Name}"
                            ${field.IsEncrypted ? 'data-encrypted' : ''}>
                 </div>
@@ -720,9 +811,11 @@ else
                     <label class="form-label">${field.Name}</label>
                     <input type="${field.IsEncrypted ? 'password' : 'text'}"
                            class="form-control"
+  
                            data-field="${field.Name}"
                            ${field.IsEncrypted ? 'data-encrypted' : ''}
                            value="${record.Data[field.Name] || ''}">
+               
                 </div>
             `).join('');
 
@@ -737,21 +830,19 @@ else
             document.querySelectorAll('#recordFields input').forEach(input => {
                 data[input.dataset.field] = input.value;
             });
-
             const handler = recordId ? 'UpdateRecord' : 'CreateRecord';
             const body = recordId ?
                 { TableName: tableName, RecordId: recordId, Data: data } :
                 { TableName: tableName, Data: data };
-
             const response = await fetch(`?handler=${handler}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': requestToken
                 },
+   
                 body: JSON.stringify(body)
             });
-
             if (response.ok) window.location.href = '?table=' + encodeURIComponent(tableName);
         }
 
@@ -771,7 +862,6 @@ else
                 method: 'POST',
                 headers: { 'RequestVerificationToken': requestToken }
             });
-
             if (response.ok) window.location.href = '?table=' + encodeURIComponent(tableName);
         }
 
