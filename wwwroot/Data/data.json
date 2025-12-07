@@ -1,0 +1,57 @@
+{
+  "Tables": [
+    {
+      "Name": "Test",
+      "Fields": [
+        {
+          "Name": "name",
+          "IsEncrypted": false,
+          "ShowCopyButton": false,
+          "Width": ""
+        },
+        {
+          "Name": "ip",
+          "IsEncrypted": false,
+          "ShowCopyButton": true,
+          "Width": "241px"
+        },
+        {
+          "Name": "password",
+          "IsEncrypted": true,
+          "ShowCopyButton": true,
+          "Width": "481px"
+        }
+      ]
+    },
+    {
+      "Name": "users",
+      "Fields": [
+        {
+          "Name": "username",
+          "IsEncrypted": false,
+          "ShowCopyButton": false,
+          "Width": ""
+        },
+        {
+          "Name": "password",
+          "IsEncrypted": true,
+          "ShowCopyButton": true,
+          "Width": ""
+        }
+      ]
+    }
+  ],
+  "Records": {
+    "Test": [
+      {
+        "Id": "7d39448e-573d-4574-a19a-6a6480695119",
+        "Data": {
+          "name": "test",
+          "ip": "192.168.0.1",
+          "password": ""
+        }
+      }
+    ],
+    "users": []
+  }
+}

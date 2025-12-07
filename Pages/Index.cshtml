@@ -1,0 +1,741 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Cred Manager";
+}
+
+<style>
+    /* Spacing tweaks */
+    .btn + .btn {
+        margin-left: 0.5rem;
+    }
+
+    /* Column Resizer Styles */
+    .resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100%;
+        width: 5px;
+        background: rgba(0, 0, 0, 0.1);
+        cursor: col-resize;
+        user-select: none;
+        touch-action: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    }
+
+    th {
+        position: relative;
+    }
+
+    th:hover .resizer {
+        opacity: 1;
+    }
+
+    .resizing {
+        cursor: col-resize;
+        border-right: 2px solid #0d6efd;
+    }
+
+    /* Drag handles */
+    .drag-handle {
+        cursor: move; /* fallback */
+        cursor: grab;
+        color: #adb5bd;
+    }
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+
+    /* Navbar sorting */
+    .nav-item.sortable-ghost {
+        opacity: 0.4;
+        background-color: #f8f9fa;
+    }
+
+    /* Table row sorting */
+    tr.sortable-ghost {
+        opacity: 0.4;
+        background-color: #e9ecef;
+    }
+</style>
+
+@if (!Model.IsAuthenticated)
+{
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-5 col-lg-4">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <h3 class="card-title text-center mb-4">Login</h3>
+                        @if (!string.IsNullOrEmpty(Model.LoginError))
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                @Model.LoginError
+                            </div>
+                        }
+                        <form method="post" asp-page-handler="Login">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="mb-4">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2">Login</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Credential Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto" id="tableNavList">
+                    @foreach (var table in Model.DataStore.Tables)
+                    {
+                        <li class="nav-item" data-id="@table.Name">
+                            <a class="nav-link table-tab" href="#" data-table="@table.Name">@table.Name</a>
+                        </li>
+                    }
+                    <li class="nav-item exclude-sort">
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#createTableModal">
+                            <i class="bi bi-plus-circle"></i> Create Table
+                        </a>
+                    </li>
+                </ul>
+                <form method="post" asp-page-handler="Logout" class="d-inline ms-auto">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        <div id="tableContent"></div>
+    </div>
+
+    <div class="modal fade" id="createTableModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Table</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Table Name</label>
+                        <input type="text" class="form-control" id="newTableName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fields</label>
+                        <div id="newTableFields"></div>
+                        <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addFieldToCreate()">
+                            <i class="bi bi-plus"></i> Add Field
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createTable()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editTableModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Table</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editTableOldName">
+                    <div class="mb-3">
+                        <label class="form-label">Table Name</label>
+                        <input type="text" class="form-control" id="editTableName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fields (Drag to Reorder)</label>
+                        <div id="editTableFields"></div>
+                        <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addFieldToEdit()">
+                            <i class="bi bi-plus"></i> Add Field
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateTable()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteTableModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Table</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this table and all its records?</p>
+                    <input type="hidden" id="deleteTableName">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteTable()">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="recordModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="recordModalTitle">Create Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="recordTableName">
+                    <input type="hidden" id="recordId">
+                    <div id="recordFields"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveRecord()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteRecordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this record?</p>
+                    <input type="hidden" id="deleteRecordTableName">
+                    <input type="hidden" id="deleteRecordId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteRecord()">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+
+    <script>
+        let dataStore = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DataStore));
+        let currentTable = null;
+        const requestToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Navbar Sorting
+            const navList = document.getElementById('tableNavList');
+            if(navList) {
+                new Sortable(navList, {
+                    animation: 150,
+                    filter: '.exclude-sort',
+                    onEnd: function (evt) {
+                        saveTableOrder();
+                    }
+                });
+            }
+
+            if (dataStore.Tables && dataStore.Tables.length > 0) {
+                showTable(dataStore.Tables[0].Name);
+            }
+
+            document.querySelectorAll('.table-tab').forEach(tab => {
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showTable(this.dataset.table);
+                });
+            });
+        });
+
+        // --- Core Table Rendering ---
+
+        function showTable(tableName) {
+            currentTable = tableName;
+            const table = dataStore.Tables.find(t => t.Name === tableName);
+            if (!table) return;
+
+            const records = dataStore.Records[tableName] || [];
+
+            document.querySelectorAll('.table-tab').forEach(t => t.classList.remove('active'));
+            const activeTab = document.querySelector(`[data-table="${tableName}"]`);
+            if(activeTab) activeTab.classList.add('active');
+
+            let html = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2>${tableName}</h2>
+                    <div class="d-flex gap-2">
+                         <button class="btn btn-secondary" onclick="openEditTable('${tableName}')">
+                             <i class="bi bi-gear"></i> Edit Table
+                         </button>
+                         <button class="btn btn-danger" onclick="openDeleteTable('${tableName}')">
+                             <i class="bi bi-trash"></i> Delete Table
+                         </button>
+                         <button class="btn btn-primary" onclick="openCreateRecord('${tableName}')">
+                            <i class="bi bi-plus-circle"></i> Create Record
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive shadow-sm border rounded">
+                    <table class="table table-striped table-hover mb-0" id="mainTable">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 50px;" class="text-center"><i class="bi bi-grip-vertical"></i></th>
+                                ${table.Fields.map(f => `
+                                    <th style="position: relative; width: ${f.Width || 'auto'}; min-width: 100px;">
+                                        ${f.Name}
+                                        <div class="resizer" onmousedown="initResize(event, '${f.Name}')"></div>
+                                    </th>`).join('')}
+                                <th style="width: 150px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            ${records.map(r => `
+                                <tr data-id="${r.Id}">
+                                    <td class="align-middle text-center"><i class="bi bi-grip-vertical drag-handle"></i></td>
+                                    ${table.Fields.map(f => `
+                                        <td class="align-middle">
+                                            ${f.IsEncrypted ?
+                                                `<div class="input-group input-group-sm">
+                                                    <input type="password" class="form-control form-control-sm" value="${r.Data[f.Name] || ''}" id="field-${r.Id}-${f.Name}" readonly>
+                                                    <button class="btn btn-outline-secondary" onclick="togglePassword('field-${r.Id}-${f.Name}')">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    ${f.ShowCopyButton ?
+                                                        `<button class="btn btn-outline-secondary" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
+                                                            <i class="bi bi-clipboard2"></i>
+                                                         </button>` : ''}
+                                                </div>`
+                                            :
+                                                `<div class="d-flex align-items-center gap-2">
+                                                    <span class="text-break">${r.Data[f.Name] || ''}</span>
+                                                    ${f.ShowCopyButton ?
+                                                        `<button class="btn btn-sm btn-outline-secondary ms-auto" onclick="copyToClipboard(this, '${r.Data[f.Name] || ''}')">
+                                                            <i class="bi bi-clipboard2"></i>
+                                                         </button>` : ''}
+                                                </div>`
+                                            }
+                                        </td>
+                                    `).join('')}
+                                    <td class="align-middle">
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-warning" onclick="openEditRecord('${tableName}', '${r.Id}')">Edit</button>
+                                            <button class="btn btn-sm btn-danger" onclick="openDeleteRecord('${tableName}', '${r.Id}')">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            document.getElementById('tableContent').innerHTML = html;
+
+            // Init Row Sorting
+            const tbody = document.getElementById('tableBody');
+            new Sortable(tbody, {
+                animation: 150,
+                handle: '.drag-handle',
+                onEnd: function (evt) {
+                    saveRecordOrder(tableName);
+                }
+            });
+        }
+
+        // --- Column Resizing Logic ---
+        let startX, startWidth, currentHeader, currentFieldName;
+
+        function initResize(e, fieldName) {
+            e.preventDefault();
+            e.stopPropagation();
+            currentHeader = e.target.parentElement;
+            currentFieldName = fieldName;
+            startX = e.pageX;
+            startWidth = currentHeader.offsetWidth;
+
+            document.documentElement.addEventListener('mousemove', doResize, false);
+            document.documentElement.addEventListener('mouseup', stopResize, false);
+            currentHeader.classList.add('resizing');
+        }
+
+        function doResize(e) {
+            const width = startWidth + (e.pageX - startX);
+            if (width > 50) { // minimum width
+                currentHeader.style.width = width + 'px';
+            }
+        }
+
+        async function stopResize(e) {
+            document.documentElement.removeEventListener('mousemove', doResize, false);
+            document.documentElement.removeEventListener('mouseup', stopResize, false);
+            currentHeader.classList.remove('resizing');
+
+            // Save new width
+            await fetch('?handler=UpdateColumnWidth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': requestToken
+                },
+                body: JSON.stringify({
+                    TableName: currentTable,
+                    FieldName: currentFieldName,
+                    Width: currentHeader.style.width
+                })
+            });
+
+            // Update local model so re-renders keep width
+            const table = dataStore.Tables.find(t => t.Name === currentTable);
+            const field = table.Fields.find(f => f.Name === currentFieldName);
+            if(field) field.Width = currentHeader.style.width;
+        }
+
+        // --- Reordering Logic ---
+
+        async function saveTableOrder() {
+            const items = document.querySelectorAll('#tableNavList .nav-item[data-id]');
+            const tableNames = Array.from(items).map(i => i.dataset.id);
+
+            await fetch('?handler=ReorderTables', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': requestToken
+                },
+                body: JSON.stringify(tableNames)
+            });
+        }
+
+        async function saveRecordOrder(tableName) {
+            const rows = document.querySelectorAll('#tableBody tr[data-id]');
+            const recordIds = Array.from(rows).map(r => r.dataset.id);
+
+            await fetch('?handler=ReorderRecords', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': requestToken
+                },
+                body: JSON.stringify({ TableName: tableName, RecordIds: recordIds })
+            });
+        }
+
+
+        // --- Create/Edit Table UI Helpers ---
+
+        function addFieldToCreate() {
+            const container = document.getElementById('newTableFields');
+            const fieldId = 'field_' + Date.now();
+            const html = getFieldCardHtml(fieldId);
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        function addFieldToEdit() {
+            const container = document.getElementById('editTableFields');
+            const fieldId = 'editfield_' + Date.now();
+            const html = getFieldCardHtml(fieldId);
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        function getFieldCardHtml(id, name = '', isEnc = false, showCopy = false) {
+            return `
+                <div class="card mb-2 shadow-sm" id="${id}">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <i class="bi bi-grip-vertical drag-handle text-muted"></i>
+                            <div class="flex-grow-1">
+                                <input type="text" class="form-control form-control-sm mb-2" placeholder="Field Name" data-field-name value="${name}">
+                                <div class="d-flex gap-3">
+                                    <div class="form-check form-check-sm">
+                                        <input class="form-check-input" type="checkbox" data-field-encrypted ${isEnc ? 'checked' : ''}>
+                                        <label class="form-check-label">Encrypt</label>
+                                    </div>
+                                    <div class="form-check form-check-sm">
+                                        <input class="form-check-input" type="checkbox" data-field-copy ${showCopy ? 'checked' : ''}>
+                                        <label class="form-check-label">Copy Button</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="document.getElementById('${id}').remove()">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Create Table ---
+
+        async function createTable() {
+            const name = document.getElementById('newTableName').value;
+            if (!name) {
+                alert('Please enter a table name');
+                return;
+            }
+
+            const fieldCards = document.querySelectorAll('#newTableFields .card');
+            const fields = Array.from(fieldCards).map(card => ({
+                Name: card.querySelector('[data-field-name]').value,
+                IsEncrypted: card.querySelector('[data-field-encrypted]').checked,
+                ShowCopyButton: card.querySelector('[data-field-copy]').checked
+            })).filter(f => f.Name);
+
+            const response = await fetch('?handler=CreateTable', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': requestToken
+                },
+                body: JSON.stringify({ Name: name, Fields: fields })
+            });
+
+            if (response.ok) {
+                const res = await response.json();
+                if(res.success) location.reload();
+                else alert(res.message || "Error creating table");
+            }
+        }
+
+        // --- Edit Table ---
+
+        function openEditTable(tableName) {
+            const table = dataStore.Tables.find(t => t.Name === tableName);
+            document.getElementById('editTableOldName').value = tableName;
+            document.getElementById('editTableName').value = tableName;
+
+            const container = document.getElementById('editTableFields');
+            container.innerHTML = '';
+            table.Fields.forEach(field => {
+                const fieldId = 'editfield_' + Date.now() + Math.random();
+                container.insertAdjacentHTML('beforeend', getFieldCardHtml(fieldId, field.Name, field.IsEncrypted, field.ShowCopyButton));
+            });
+
+            // Make fields draggable in modal
+            new Sortable(container, {
+                animation: 150,
+                handle: '.drag-handle'
+            });
+
+            new bootstrap.Modal(document.getElementById('editTableModal')).show();
+        }
+
+        async function updateTable() {
+            const oldName = document.getElementById('editTableOldName').value;
+            const newName = document.getElementById('editTableName').value;
+
+            const fieldCards = document.querySelectorAll('#editTableFields .card');
+            const fields = Array.from(fieldCards).map(card => ({
+                Name: card.querySelector('[data-field-name]').value,
+                IsEncrypted: card.querySelector('[data-field-encrypted]').checked,
+                ShowCopyButton: card.querySelector('[data-field-copy]').checked
+            })).filter(f => f.Name);
+
+            const response = await fetch('?handler=UpdateTable', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': requestToken
+                },
+                body: JSON.stringify({
+                    OldName: oldName,
+                    NewTable: { Name: newName, Fields: fields }
+                })
+            });
+
+            if (response.ok) {
+                location.reload();
+            }
+        }
+
+        // --- Delete Table ---
+
+        function openDeleteTable(tableName) {
+            document.getElementById('deleteTableName').value = tableName;
+            new bootstrap.Modal(document.getElementById('deleteTableModal')).show();
+        }
+
+        async function deleteTable() {
+            const tableName = document.getElementById('deleteTableName').value;
+            const response = await fetch(`?handler=DeleteTable&tableName=${tableName}`, {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': requestToken }
+            });
+            if (response.ok) location.reload();
+        }
+
+        // --- Create Record ---
+
+        function openCreateRecord(tableName) {
+            const table = dataStore.Tables.find(t => t.Name === tableName);
+            document.getElementById('recordModalTitle').textContent = 'Create Record';
+            document.getElementById('recordTableName').value = tableName;
+            document.getElementById('recordId').value = '';
+
+            const container = document.getElementById('recordFields');
+            container.innerHTML = table.Fields.map(field => `
+                <div class="mb-3">
+                    <label class="form-label">${field.Name}</label>
+                    <input type="${field.IsEncrypted ? 'password' : 'text'}"
+                           class="form-control"
+                           data-field="${field.Name}"
+                           ${field.IsEncrypted ? 'data-encrypted' : ''}>
+                </div>
+            `).join('');
+            new bootstrap.Modal(document.getElementById('recordModal')).show();
+        }
+
+        // --- Edit Record ---
+
+        function openEditRecord(tableName, recordId) {
+            const table = dataStore.Tables.find(t => t.Name === tableName);
+            const record = dataStore.Records[tableName].find(r => r.Id === recordId);
+
+            document.getElementById('recordModalTitle').textContent = 'Edit Record';
+            document.getElementById('recordTableName').value = tableName;
+            document.getElementById('recordId').value = recordId;
+
+            const container = document.getElementById('recordFields');
+            container.innerHTML = table.Fields.map(field => `
+                <div class="mb-3">
+                    <label class="form-label">${field.Name}</label>
+                    <input type="${field.IsEncrypted ? 'password' : 'text'}"
+                           class="form-control"
+                           data-field="${field.Name}"
+                           ${field.IsEncrypted ? 'data-encrypted' : ''}
+                           value="${record.Data[field.Name] || ''}">
+                </div>
+            `).join('');
+
+            new bootstrap.Modal(document.getElementById('recordModal')).show();
+        }
+
+        async function saveRecord() {
+            const tableName = document.getElementById('recordTableName').value;
+            const recordId = document.getElementById('recordId').value;
+
+            const data = {};
+            document.querySelectorAll('#recordFields input').forEach(input => {
+                data[input.dataset.field] = input.value;
+            });
+
+            const handler = recordId ? 'UpdateRecord' : 'CreateRecord';
+            const body = recordId ?
+                { TableName: tableName, RecordId: recordId, Data: data } :
+                { TableName: tableName, Data: data };
+
+            const response = await fetch(`?handler=${handler}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': requestToken
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (response.ok) location.reload();
+        }
+
+        // --- Delete Record ---
+
+        function openDeleteRecord(tableName, recordId) {
+            document.getElementById('deleteRecordTableName').value = tableName;
+            document.getElementById('deleteRecordId').value = recordId;
+            new bootstrap.Modal(document.getElementById('deleteRecordModal')).show();
+        }
+
+        async function deleteRecord() {
+            const tableName = document.getElementById('deleteRecordTableName').value;
+            const recordId = document.getElementById('deleteRecordId').value;
+
+            const response = await fetch(`?handler=DeleteRecord&tableName=${tableName}&recordId=${recordId}`, {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': requestToken }
+            });
+            if (response.ok) location.reload();
+        }
+
+        // --- Utilities ---
+
+        function togglePassword(fieldId) {
+            const input = document.getElementById(fieldId);
+            const button = input.nextElementSibling;
+            const icon = button.querySelector('i');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        }
+
+        // Robust Copy function (works without SSL/localhost context restrictions)
+        function copyToClipboard(btnElement, text) {
+            if (!text) return;
+
+            // Strategy 1: Modern API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => showCopiedFeedback(btnElement));
+            } else {
+                // Strategy 2: Fallback text area
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";  // Avoid scrolling to bottom
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showCopiedFeedback(btnElement);
+                } catch (err) {
+                    console.error('Fallback: Oops, unable to copy', err);
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function showCopiedFeedback(btn) {
+            const icon = btn.querySelector('i');
+            const originalClass = icon.className;
+
+            icon.className = 'bi bi-check-lg text-success';
+            setTimeout(() => {
+                icon.className = originalClass;
+            }, 1000);
+        }
+    </script>
+}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
